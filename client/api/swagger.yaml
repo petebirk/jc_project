@@ -1,0 +1,139 @@
+openapi: 3.0.0
+info:
+  title: JumpCloud Project API
+  description: This is a simple API for JumpCloud Project
+  contact:
+    email: petebirk@memyselfandi.com
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  version: 1.0.0
+servers:
+- url: https://virtserver.swaggerhub.com/pbirk007/JCProject/1.0.0
+  description: SwaggerHub API Auto Mocking
+- url: https://localhost:443/api/v1
+  description: Local server
+tags:
+- name: admins
+  description: Secured Admin-only calls
+- name: developers
+  description: Operations available to regular developers
+paths:
+  /hash:
+    post:
+      tags:
+      - developers
+      summary: creates a new hash request
+      description: |
+        Pass in password field in request body.  Queue the password hash request, but don't hash it for 5 seconds.  Return a unique request ID that can be used with /hash/${requestid} for obtaining the base64 encoded hash value.
+      operationId: requestHash
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/body'
+      responses:
+        "202":
+          description: Accepted but not ready yet
+          content:
+            text/plain:
+              schema:
+                type: integer
+                x-content-type: text/plain
+        "400":
+          description: The request input is not valid.
+        "401":
+          description: The user does not have authority.
+        "405":
+          description: Method is not allowed.
+  /hash/{requestId}:
+    get:
+      tags:
+      - developers
+      summary: retrieves the password hash
+      description: |
+        Submit the requestId in the API path and the password hash associated with this requestId will be returned.   If the password hash has not been created yet, it will return a 202 Accepted response until the password hash is ready to return.
+      operationId: retrieveHash
+      parameters:
+      - name: requestId
+        in: path
+        description: |
+          The value returned in the original /hash request to retrieve the password hash.
+        required: true
+        style: simple
+        explode: false
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Hash returned successfully.
+          content:
+            text/plain:
+              schema:
+                type: string
+                x-content-type: text/plain
+        "202":
+          description: Accepted but not ready yet.
+        "400":
+          description: The request was not valid.
+        "401":
+          description: The user does not have authority.
+        "404":
+          description: The requestId was not found.
+        "405":
+          description: Method is not allowed.
+  /stats:
+    get:
+      tags:
+      - admins
+      summary: Return statisics on hash requests.
+      description: |
+        This will return a JSON response that contains the hash request statistics including total number of hash requests and average time in microseconds.
+      operationId: requestStatistics
+      responses:
+        "200":
+          description: Successfully returned statistics.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Statistics'
+        "401":
+          description: The user does not have authority.
+        "405":
+          description: Method is not allowed.
+  /shutdown:
+    post:
+      tags:
+      - admins
+      summary: Shuts down the system after all requests processed.
+      description: |
+        This will reject any new requests from coming in immediately and will wait for pending requests to finish before exiting.
+      operationId: shutdown
+      responses:
+        "200":
+          description: Successfully initiated shutdown.
+        "401":
+          description: The user does not have authority.
+        "405":
+          description: Method is not allowed.
+components:
+  schemas:
+    Statistics:
+      type: object
+      properties:
+        total:
+          type: integer
+          format: int32
+        average:
+          type: integer
+          format: int64
+      example:
+        average: 6
+        total: 0
+    body:
+      required:
+      - password
+      properties:
+        password:
+          type: string
+          description: Password to hash
